@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const calls: string[] = [];
 const state = vi.hoisted(() => ({ instances: [] as any[], options: undefined as any }));
@@ -12,7 +12,11 @@ vi.mock('ghostty-web', () => {
       calls.push('new Terminal');
     }
     loadAddon = vi.fn(() => calls.push('loadAddon'));
-    open = vi.fn(() => calls.push('open'));
+    textarea?: HTMLTextAreaElement;
+    open = vi.fn(() => {
+      calls.push('open');
+      this.textarea = document.createElement('textarea');
+    });
     focus = vi.fn(() => calls.push('focus'));
   }
   class FitAddon {
@@ -64,5 +68,24 @@ describe('createTerminal', () => {
     expect(calls.indexOf('open')).toBeLessThan(calls.indexOf('fit'));
     expect(calls.indexOf('fit')).toBeLessThan(calls.indexOf('observeResize'));
     expect(calls).toContain('focus');
+  });
+
+  describe('on-screen keyboard', () => {
+    const original = window.matchMedia;
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('is kept from opening on a touch screen, where the app is driven by touch', async () => {
+      window.matchMedia = (() => ({ matches: true })) as unknown as typeof window.matchMedia;
+      const { term } = await createTerminal(document.createElement('div'));
+      expect(term.textarea?.getAttribute('inputmode')).toBe('none');
+    });
+
+    it('is left alone with a mouse and keyboard', async () => {
+      window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+      const { term } = await createTerminal(document.createElement('div'));
+      expect(term.textarea?.hasAttribute('inputmode')).toBe(false);
+    });
   });
 });

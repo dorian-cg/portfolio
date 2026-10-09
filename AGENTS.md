@@ -22,9 +22,13 @@ Use npm only.
 - `src/main.ts`: entry; imports `./shims/install` first, sets chalk colour level
 - `src/bootstrap.tsx`: creates the terminal, the bridges and renders the Ink app
 - `src/terminal/`: ghostty-web setup (`create-terminal.ts`, `theme.ts`)
-- `src/ink-bridge/`: `TerminalStdin` / `TerminalStdout` adapters; `FakeTerminal` for tests
+- `src/ink-bridge/`: `TerminalStdin` / `TerminalStdout` adapters; `TerminalPointer` (taps, wheel, drag and swipe from the browser's pointer events); `FakeTerminal` and `FakePointer` for tests
 - `src/shims/`: browser replacements for Node built-ins used by Ink
-- `src/app/`: Ink React components (`*.tsx`)
+- `src/content/profile.ts`: everything the portfolio says, from the resume. Edit text and links here
+- `src/app/`: Ink React components. `App.tsx` (providers, intro then HUD), `Intro.tsx` + `intro-script.ts`, `layout.ts` (`layoutFor`: wide, medium, narrow), `navigation.ts` (pure reducer) + `use-navigation.ts` (keys and gestures)
+  - `hud/`: the screen (`Hud.tsx` arranges the panels per layout; `sections/` has one view per section; `ScrollView.tsx`)
+  - `fx/`: animation primitives (`typewriter`, `decrypt`, `braille` canvas, `emblem`, `globe` with `world-map.ts`, `uptime`, `motion` context)
+  - `input/`: `PointerProvider`, `useTap` / `Tap` (hit-test against Ink's layout)
 - `src/boot/`: boot-screen overlay (`steps.ts` script, `boot-screen.ts` player, `display.ts` canvas drawing, `boot-theme.ts`, `preferences.ts`); its markup and CSS live in `index.html`
 - `src/assets/fonts/`: generated web fonts; `scripts/build-fonts.mjs` rebuilds them from `fonts/` (git-ignored TTFs)
 
@@ -34,7 +38,11 @@ Use npm only.
 - DOM tests opt in with `// @vitest-environment jsdom`; the default is node.
 - Mock `ghostty-web` in tests (it needs WASM and canvas). Use `FakeTerminal` to
   drive the bridges and Ink without a real terminal.
-- Components must lay out from `useWindowSize()` so they follow terminal resizes.
+- Components must lay out from `useWindowSize()` so they follow terminal resizes. `layoutFor(columns, rows)` picks wide (>= 100 columns), medium (>= 60) or narrow (phones); every change has to work in all three.
+- Every animation honours `prefers-reduced-motion` through `src/app/fx/motion.tsx`: reduced motion shows the final state at once. Render with `<App reducedMotion />` (or a `MotionProvider reduced`) in tests that check content.
+- Fixed-size pieces of the screen (header, footer, tabs) need `flexShrink={0}` and scrolling regions `flexBasis={0}`; Ink's flex shrink otherwise squashes the fixed pieces when content is tall.
+- Glyphs must be in the font subset (`scripts/build-fonts.mjs`): box drawing, blocks, braille, geometric shapes, arrows. No emoji.
+- Tests that wait for animation or measured layout poll with `until` (`src/app/test-utils.ts`) instead of sleeping. A page that has just opened reports its size a render or two later, so a key pressed in that first moment can find nothing to scroll; tests repeat the key until it takes effect.
 - Ink is Node-first. If the build fails with a missing export, or the browser
   reports a Node built-in, add an alias in `vite.config.ts` and a shim in
   `src/shims/` (with a test). Aliases are skipped under Vitest on purpose.

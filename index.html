@@ -3,9 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0e14" />
-    <link rel="icon" href="data:," />
-    <title>portfolio</title>
+    <meta name="theme-color" content="#050b12" />
+    <title>Dorian Cortes · Senior Software Engineer</title>
+    <meta
+      name="description"
+      content="Dorian Cortes, Senior Software Engineer: full-stack, cloud-native and agentic systems. An interactive terminal portfolio."
+    />
+    <meta property="og:title" content="Dorian Cortes · Senior Software Engineer" />
+    <meta
+      property="og:description"
+      content="Full-stack, cloud-native and agentic systems. An interactive terminal portfolio."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link
       rel="preload"
       href="/src/assets/fonts/MesloLGSNerdFont-Regular.woff2"
@@ -54,7 +66,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #0b0e14;
+        background: #050b12;
       }
       #terminal {
         box-sizing: border-box;
@@ -76,7 +88,7 @@
         inset: 0;
         z-index: 10;
         overflow: hidden;
-        background: var(--boot-bg, #0b0e14);
+        background: var(--boot-bg, #050b12);
         transition: opacity 0.35s ease-out;
       }
       #boot.boot-out {
@@ -106,7 +118,7 @@
         top: calc(var(--boot-cursor-row, 0) * var(--boot-cell-h, 18px));
         width: var(--boot-cell-w, 9px);
         height: var(--boot-cell-h, 18px);
-        background: var(--boot-cursor, #ffcc66);
+        background: var(--boot-cursor, #ffb454);
         animation: cursor-blink 1s steps(1) infinite;
       }
       /* A CRT powering on: a dot stretches into a line, then opens up. */

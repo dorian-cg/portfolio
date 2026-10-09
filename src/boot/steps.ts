@@ -14,19 +14,23 @@ export type BootStep =
    */
   | { kind: 'task'; text: string; work: number; milestone?: Milestone };
 
+/**
+ * Every line has to fit a phone, about 36 columns. A task also gets ` ... [ OK ]`
+ * after its text, which is 11 more.
+ */
 export const BOOT_STEPS: readonly BootStep[] = [
-  { kind: 'line', text: 'PORTFOLIO BIOS v1.0', pause: 120 },
-  { kind: 'line', text: 'Copyright (C) 1992-2026. All rights reserved.', pause: 120 },
+  { kind: 'line', text: 'DC//OS BOOT v1.0', pause: 120 },
+  { kind: 'line', text: 'Personnel interface (c) 2026', pause: 120 },
   { kind: 'blank', pause: 80 },
   { kind: 'memory', label: 'Memory Test:', total: 640, duration: 500 },
   { kind: 'blank', pause: 80 },
-  { kind: 'task', text: 'Detecting display adapter', work: 100 },
-  { kind: 'task', text: 'Detecting keyboard', work: 90 },
+  { kind: 'task', text: 'Calibrating display', work: 100 },
+  { kind: 'task', text: 'Detecting input', work: 90 },
   { kind: 'blank', pause: 80 },
-  { kind: 'line', text: 'Starting portfolio...', pause: 200 },
-  { kind: 'task', text: 'Loading terminal engine (WASM)', work: 120, milestone: 'terminal' },
+  { kind: 'line', text: 'Initialising DC//OS...', pause: 200 },
+  { kind: 'task', text: 'Loading terminal (WASM)', work: 120, milestone: 'terminal' },
   { kind: 'task', text: 'Mounting React runtime', work: 120 },
   { kind: 'task', text: 'Starting Ink', work: 120, milestone: 'ink' },
   { kind: 'blank', pause: 80 },
-  { kind: 'line', text: 'Welcome.', pause: 300 },
+  { kind: 'line', text: 'Interface ready.', pause: 300 },
 ];

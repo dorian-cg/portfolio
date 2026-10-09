@@ -7,7 +7,7 @@
 // Each font is subset to the characters a terminal UI needs and written as WOFF2,
 // which takes it from ~3 MB to well under 100 KB. The Nerd Font icon sets (Font
 // Awesome, Devicons, Octicons, ...) are left out because they are ~600 KB per
-// style; add their ranges below, or only the specific glyphs used, when needed.
+// style; only the specific icons the UI uses are kept (see ICONS below).
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import subsetFont from 'subset-font';
 
@@ -31,7 +31,12 @@ const RANGES = [
   [0xe0a0, 0xe0d7], // Powerline and Powerline Extra symbols
 ];
 
-const text = RANGES.flatMap(([from, to]) =>
+/** Individual Nerd Font icons: add the codepoint and what it is. */
+const ICONS = [
+  0xe709, // nf-dev-github_badge, the GitHub icon in the header
+];
+
+const text = [...RANGES, ...ICONS.map((icon) => [icon, icon])].flatMap(([from, to]) =>
   Array.from({ length: to - from + 1 }, (_, index) => String.fromCodePoint(from + index)),
 ).join('');
 

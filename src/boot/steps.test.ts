@@ -32,4 +32,21 @@ describe('BOOT_STEPS', () => {
     expect(total).toBeGreaterThan(1500);
     expect(total).toBeLessThan(4000);
   });
+
+  describe('on a phone', () => {
+    const PHONE_COLUMNS = 36;
+    const STATUS = ' ... [ OK ]'.length;
+
+    it('fits every line, with its status, in the columns a phone has', () => {
+      for (const step of BOOT_STEPS) {
+        if (step.kind === 'line') {
+          expect(step.text.length).toBeLessThanOrEqual(PHONE_COLUMNS);
+        } else if (step.kind === 'task') {
+          expect(step.text.length + STATUS).toBeLessThanOrEqual(PHONE_COLUMNS);
+        } else if (step.kind === 'memory') {
+          expect(`${step.label} ${step.total}K OK`.length).toBeLessThanOrEqual(PHONE_COLUMNS);
+        }
+      }
+    });
+  });
 });

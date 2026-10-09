@@ -1,6 +1,7 @@
 import { FitAddon, Terminal, init } from 'ghostty-web';
 import { fontFamily, fontSize, loadFonts } from './font';
 import { theme } from './theme';
+import { hasCoarsePointer } from './touch';
 
 export interface TerminalHandle {
   term: Terminal;
@@ -30,6 +31,10 @@ export async function createTerminal(container: HTMLElement): Promise<TerminalHa
 
   fit.fit();
   fit.observeResize();
+  // The app is driven by touch there, so a tap must not raise the on-screen keyboard.
+  if (hasCoarsePointer()) {
+    term.textarea?.setAttribute('inputmode', 'none');
+  }
   term.focus();
 
   return { term, fit };

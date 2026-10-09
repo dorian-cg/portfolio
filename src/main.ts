@@ -32,9 +32,12 @@ async function main() {
 
   // The app starts behind the boot screen, which stays up until it has played
   // out and the terminal is ready.
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => (release = resolve));
   try {
-    await bootstrap(container, { onMilestone: boot.milestone });
+    await bootstrap(container, { onMilestone: boot.milestone, ready });
     await boot.done();
+    release();
   } catch (error) {
     boot.fail(error);
     throw error;
