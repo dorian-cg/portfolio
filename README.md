@@ -135,6 +135,15 @@ for browsers and home screens that do not take an SVG.
 ## Deployment
 
 Pushes to `main` run typecheck, tests and build, then deploy `dist/` to GitHub
-Pages (`.github/workflows/deploy.yml`). In the repository settings, set
-**Pages → Source** to **GitHub Actions**. The build uses a relative base path,
-so it works under `/portfolio/` and on a custom domain.
+Pages (`.github/workflows/deploy.yml`). The site is at
+<https://dorian-cg.github.io/portfolio/>.
+
+One-time setup: in the repository settings, set **Pages → Source** to
+**GitHub Actions**, or run:
+
+```sh
+gh api -X POST repos/dorian-cg/portfolio/pages -f build_type=workflow
+```
+
+The build uses a relative base path, so it works under `/portfolio/` and on a
+custom domain.
