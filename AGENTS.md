@@ -29,7 +29,8 @@ Use npm only.
   - `hud/`: the screen (`Hud.tsx` arranges the panels per layout; `sections/` has one view per section; `ScrollView.tsx`)
   - `fx/`: animation primitives (`typewriter`, `decrypt`, `braille` canvas, `emblem`, `globe` with `world-map.ts`, `uptime`, `motion` context)
   - `input/`: `PointerProvider`, `useTap` / `Tap` (hit-test against Ink's layout)
-- `src/boot/`: boot-screen overlay (`steps.ts` script, `boot-screen.ts` player, `display.ts` canvas drawing, `boot-theme.ts`, `preferences.ts`); its markup and CSS live in `index.html`
+- `src/boot/`: boot-screen overlay (`steps.ts` script, `boot-screen.ts` player, `display.ts` canvas drawing, `boot-theme.ts`, `preferences.ts`, `boot-sound.ts` maps boot events to cues); its markup and CSS live in `index.html`
+- `src/sound/`: Web Audio sound, no audio files. `recipes.ts` (oscillator recipes from Bencho, MIT, notice in the file), `synth.ts` (schedules a recipe), `cues.ts` (every cue by name, with gain, throttle and jitter: **tune the soundscape here**), `engine.ts` (`createSoundEngine`: unlock on a gesture, on/off kept in `localStorage`; `silentEngine` is the default). `fake-audio.ts` has `fakeAudio()` and `RecordingSound` for tests. The React side is `src/app/sound.tsx` (`SoundProvider`, `useSound`, `useSoundEnabled`)
 - `src/assets/fonts/`: generated web fonts; `scripts/build-fonts.mjs` rebuilds them from `fonts/` (git-ignored TTFs)
 
 ## Conventions
@@ -41,6 +42,7 @@ Use npm only.
 - Components must lay out from `useWindowSize()` so they follow terminal resizes. `layoutFor(columns, rows)` picks wide (>= 100 columns), medium (>= 60) or narrow (phones); every change has to work in all three.
 - Every animation honours `prefers-reduced-motion` through `src/app/fx/motion.tsx`: reduced motion shows the final state at once. Render with `<App reducedMotion />` (or a `MotionProvider reduced`) in tests that check content.
 - Fixed-size pieces of the screen (header, footer, tabs) need `flexShrink={0}` and scrolling regions `flexBasis={0}`; Ink's flex shrink otherwise squashes the fixed pieces when content is tall.
+- Sound: play through `useSound()` (or `engine.play` outside React) with a cue name from `cues.ts`; do not build oscillators elsewhere. Browsers allow audio only after a key press or tap, so the boot waits at a `power` step for one (`gate`), and `engine.unlock()` runs inside that gesture. Cues that repeat quickly need a `gap`. Tests use `RecordingSound` (via `<App sound={…}>` or `SoundProvider`) or `fakeAudio()`; never real audio.
 - Glyphs must be in the font subset (`scripts/build-fonts.mjs`): box drawing, blocks, braille, geometric shapes, arrows. No emoji.
 - Tests that wait for animation or measured layout poll with `until` (`src/app/test-utils.ts`) instead of sleeping. A page that has just opened reports its size a render or two later, so a key pressed in that first moment can find nothing to scroll; tests repeat the key until it takes effect.
 - Ink is Node-first. If the build fails with a missing export, or the browser

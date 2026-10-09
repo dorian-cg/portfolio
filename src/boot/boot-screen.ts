@@ -1,5 +1,13 @@
-import { BOOT_STEPS, type BootStep, type Milestone } from './steps';
+import { BOOT_STEPS, POWER_PROMPT, type BootStep, type Milestone } from './steps';
 import type { Display, Row } from './display';
+
+/** Something the boot did that is worth a sound. */
+export type BootEvent =
+  | { type: 'power' | 'line' | 'ready' | 'out' | 'fail' }
+  /** The memory counter moved; `progress` goes from 0 to 1. */
+  | { type: 'count'; progress: number }
+  /** A task or the memory test finished; `index` counts them from 0. */
+  | { type: 'ok'; index: number };
 
 export interface BootOptions {
   /** Skip the animation entirely (e.g. reduced motion). */
@@ -7,6 +15,18 @@ export interface BootOptions {
   /** Draws the boot rows. Without one, the sequence runs but shows no text. */
   display?: Display;
   steps?: readonly BootStep[];
+  /**
+   * Waits at the `power` step for a key or tap, so the page has the gesture
+   * browsers want before they allow sound. Loading carries on behind the wait.
+   */
+  gate?: boolean;
+  /**
+   * Called inside that key press or tap, so it can start audio. `silent` is
+   * true when the visitor chose M. The boot waits briefly for the promise.
+   */
+  onPower?: (silent: boolean) => void | Promise<void>;
+  /** Called as the boot does things; nothing is reported once the visitor skips. */
+  onEvent?: (event: BootEvent) => void;
 }
 
 export interface BootScreen {
@@ -21,6 +41,17 @@ export interface BootScreen {
 }
 
 const FADE_MS = 350;
+
+/** The longest the boot waits for audio to start before going on. */
+const POWER_WAIT_MS = 300;
+
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock']);
+
+/** The decision made at the power-on prompt. */
+interface Powered {
+  silent: boolean;
+  pending: void | Promise<void>;
+}
 
 const noopBoot: BootScreen = {
   milestone() {},
@@ -47,6 +78,7 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
   }
 
   const { steps = BOOT_STEPS, display = nullDisplay } = options;
+  const gated = Boolean(options.gate) && steps.some((step) => step.kind === 'power');
   const cursor = root.querySelector<HTMLElement>('.boot-cursor');
 
   const rows: Row[] = [];
@@ -55,6 +87,15 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
   const pendingSleeps = new Set<() => void>();
   const reached = new Set<Milestone>();
   const waiters = new Map<Milestone, Array<() => void>>();
+  let okCount = 0;
+  let releaseGate: ((powered?: Powered) => void) | undefined;
+  let gateEvent: Event | undefined;
+
+  const emit = (event: BootEvent) => {
+    if (!skipped || event.type === 'fail') {
+      options.onEvent?.(event);
+    }
+  };
 
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -96,11 +137,70 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
     return row;
   };
 
+  /** Shows the power-on prompt and waits for a key or tap, then takes it down again. */
+  const waitForPower = async () => {
+    const first = rows.length;
+    POWER_PROMPT.forEach((text) => addRow(text));
+
+    const powered = await new Promise<Powered | undefined>((resolve) => {
+      const onGesture = (event: Event) => {
+        if (event instanceof KeyboardEvent && (event.repeat || MODIFIER_KEYS.has(event.key))) {
+          return;
+        }
+        removeGateListeners();
+        gateEvent = event;
+        const silent = event instanceof KeyboardEvent && event.key.toLowerCase() === 'm';
+        // Inside the gesture, which is the only place audio may start.
+        let pending: void | Promise<void>;
+        try {
+          pending = options.onPower?.(silent);
+        } catch {
+          pending = undefined;
+        }
+        resolve({ silent, pending });
+      };
+      const removeGateListeners = () => {
+        window.removeEventListener('keydown', onGesture);
+        window.removeEventListener('pointerdown', onGesture);
+        releaseGate = undefined;
+      };
+      window.addEventListener('keydown', onGesture);
+      window.addEventListener('pointerdown', onGesture);
+      releaseGate = (value) => {
+        removeGateListeners();
+        resolve(value);
+      };
+    });
+
+    // Only the prompt's own rows: a failure may have added its message below them.
+    rows.splice(first, POWER_PROMPT.length);
+    render();
+    if (!powered || aborted) {
+      return;
+    }
+    listenForSkip();
+    if (!powered.silent) {
+      root.classList.add('boot-power');
+      emit({ type: 'power' });
+    }
+    // A rejected or slow start of audio must not hold the boot up.
+    await Promise.race([
+      Promise.resolve(powered.pending).catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, POWER_WAIT_MS)),
+    ]);
+  };
+
   const play = async (step: BootStep) => {
     switch (step.kind) {
       case 'line':
         addRow(step.text);
+        emit({ type: step.event ?? 'line' });
         await sleep(step.pause ?? 0);
+        break;
+      case 'power':
+        if (gated) {
+          await waitForPower();
+        }
         break;
       case 'blank':
         addRow();
@@ -113,15 +213,18 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
           const amount = Math.round((step.total * frame) / frames);
           row[0] = { text: `${step.label} ${amount}K`, tone: 'text' };
           render();
+          emit({ type: 'count', progress: frame / frames });
           await sleep(step.duration / frames);
         }
         row.push({ text: ' OK', tone: 'ok' });
         render();
+        emit({ type: 'ok', index: okCount++ });
         await sleep(100);
         break;
       }
       case 'task': {
         const row = addRow(`${step.text} ...`);
+        emit({ type: 'line' });
         await sleep(step.work);
         if (step.milestone) {
           await waitFor(step.milestone);
@@ -129,6 +232,7 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
         if (!aborted) {
           row.push({ text: ' [ OK ]', tone: 'ok' });
           render();
+          emit({ type: 'ok', index: okCount++ });
         }
         break;
       }
@@ -146,6 +250,7 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
       return;
     }
     root.classList.add('boot-out');
+    emit({ type: 'out' });
     await new Promise((resolve) => setTimeout(resolve, FADE_MS));
     root.remove();
     display.dispose();
@@ -157,12 +262,23 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
     [...pendingSleeps].forEach((finish) => finish());
   };
 
-  const removeSkipListeners = () => {
-    window.removeEventListener('keydown', skip);
-    window.removeEventListener('pointerdown', skip);
+  // The key or tap that powered the boot on must not also skip it, and neither must holding that key.
+  const onSkipInput = (event: Event) => {
+    if (event !== gateEvent && !(event instanceof KeyboardEvent && event.repeat)) {
+      skip();
+    }
   };
-  window.addEventListener('keydown', skip);
-  window.addEventListener('pointerdown', skip);
+  const listenForSkip = () => {
+    window.addEventListener('keydown', onSkipInput);
+    window.addEventListener('pointerdown', onSkipInput);
+  };
+  const removeSkipListeners = () => {
+    window.removeEventListener('keydown', onSkipInput);
+    window.removeEventListener('pointerdown', onSkipInput);
+  };
+  if (!gated) {
+    listenForSkip();
+  }
 
   const completion = run();
 
@@ -176,10 +292,12 @@ export function startBoot(root: HTMLElement | null, options: BootOptions = {}): 
     skip,
     fail(error) {
       aborted = true;
+      releaseGate?.();
       [...pendingSleeps].forEach((finish) => finish());
       waiters.forEach((list) => list.forEach((resolve) => resolve()));
       waiters.clear();
       removeSkipListeners();
+      emit({ type: 'fail' });
       const message = error instanceof Error ? error.message : String(error);
       rows.push([
         { text: '[FAIL] ', tone: 'fail' },

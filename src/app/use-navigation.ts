@@ -1,9 +1,11 @@
 import { useInput } from 'ink';
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { scalePitch } from '../sound/cues';
 import { usePointerGesture } from './input/pointer';
-import { SECTIONS, type Page } from './hud/sections';
+import { PAGES, SECTIONS, type Page } from './hud/sections';
 import type { Layout } from './layout';
 import { initialNav, navigate, pagesFor, type NavAction, type ScrollRange } from './navigation';
+import { useSound, useSoundEngine } from './sound';
 
 /** Longer than the slowest section takes to type out. After this a page counts as seen, even without leaving it. */
 export const ENTRANCE_MS = 4000;
@@ -26,6 +28,24 @@ export interface Navigation {
 /** Page and scroll state, driven by the keyboard and the pointer while `isActive`. */
 export function useNavigation(layout: Layout, isActive = true): Navigation {
   const [state, dispatch] = useReducer(navigate, initialNav);
+  const engine = useSoundEngine();
+  const play = useSound();
+
+  // The reducer is read for what an action will do, from the latest state, so the callbacks below keep their identity.
+  const latest = useRef(state);
+  latest.current = state;
+
+  /** Moves between pages. Each page has a note of its own, so every move can be heard. */
+  const move = useCallback(
+    (action: NavAction) => {
+      const to = navigate(latest.current, action).page;
+      if (to !== latest.current.page) {
+        play('section', { pitch: scalePitch(PAGES.indexOf(to)) });
+      }
+      dispatch(action);
+    },
+    [play],
+  );
 
   // Wider screens have no identity page: it is always beside the sections.
   useEffect(() => {
@@ -50,14 +70,26 @@ export function useNavigation(layout: Layout, isActive = true): Navigation {
   );
 
   const step = useCallback(
-    (delta: 1 | -1) => dispatch({ type: 'step', delta, pages: pagesFor(layout.mode) }),
-    [layout.mode],
+    (delta: 1 | -1) => move({ type: 'step', delta, pages: pagesFor(layout.mode) }),
+    [move, layout.mode],
   );
-  const goto = useCallback((page: Page) => dispatch({ type: 'goto', page }), []);
+  const goto = useCallback((page: Page) => move({ type: 'goto', page }), [move]);
+
+  /** Scrolls, with a tick for each move and a thud when the content has no further to go. */
+  const scroll = (action: NavAction, cue: 'tick' | 'glide') => {
+    const before = state.scroll[state.page] ?? 0;
+    const after = navigate(state, action).scroll[state.page] ?? 0;
+    if (after !== before) {
+      play(cue);
+    } else if ((state.range[state.page]?.max ?? 0) > 0) {
+      play('edge');
+    }
+    dispatch(action);
+  };
 
   usePointerGesture((gesture) => {
     if (gesture.type === 'wheel' || gesture.type === 'drag') {
-      dispatch({ type: 'scroll', delta: gesture.rows });
+      scroll({ type: 'scroll', delta: gesture.rows }, 'tick');
     } else if (gesture.type === 'swipe') {
       step(gesture.direction === 'left' ? 1 : -1);
     }
@@ -69,12 +101,13 @@ export function useNavigation(layout: Layout, isActive = true): Navigation {
       if (key.rightArrow || (key.tab && !key.shift)) step(1);
       else if (key.leftArrow || (key.tab && key.shift)) step(-1);
       else if (section) goto(section.id);
-      else if (key.downArrow || input === 'j') dispatch({ type: 'scroll', delta: 1 });
-      else if (key.upArrow || input === 'k') dispatch({ type: 'scroll', delta: -1 });
-      else if (key.pageDown || input === ' ') dispatch({ type: 'scrollPage', direction: 1 });
-      else if (key.pageUp) dispatch({ type: 'scrollPage', direction: -1 });
-      else if (key.home || input === 'g') dispatch({ type: 'scrollTo', position: 'top' });
-      else if (key.end || input === 'G') dispatch({ type: 'scrollTo', position: 'bottom' });
+      else if (key.downArrow || input === 'j') scroll({ type: 'scroll', delta: 1 }, 'tick');
+      else if (key.upArrow || input === 'k') scroll({ type: 'scroll', delta: -1 }, 'tick');
+      else if (key.pageDown || input === ' ') scroll({ type: 'scrollPage', direction: 1 }, 'glide');
+      else if (key.pageUp) scroll({ type: 'scrollPage', direction: -1 }, 'glide');
+      else if (key.home || input === 'g') scroll({ type: 'scrollTo', position: 'top' }, 'glide');
+      else if (key.end || input === 'G') scroll({ type: 'scrollTo', position: 'bottom' }, 'glide');
+      else if (input === 'm') engine.toggle();
     },
     { isActive },
   );

@@ -1,6 +1,8 @@
 import { render } from 'ink-testing-library';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakePointer } from '../ink-bridge/fake-pointer';
+import { scalePitch } from '../sound/cues';
+import { RecordingSound } from '../sound/fake-audio';
 import { profile } from '../content/profile';
 import { App } from './App';
 import { MotionProvider } from './fx/motion';
@@ -203,5 +205,54 @@ describe('the narrow pager', () => {
     const title = locate(lastFrame(), 'MISSIONS');
     pointer.tap(title.col, title.row, 'touch');
     expect(onStep).not.toHaveBeenCalled();
+  });
+});
+
+describe('sounds', () => {
+  async function openWithSound() {
+    const pointer = new FakePointer();
+    const sound = new RecordingSound();
+    const app = render(<App reducedMotion pointer={pointer.onGesture} sound={sound} />);
+    await wait(80);
+    return { pointer, sound, ...app };
+  }
+
+  it('plays the section note for a tapped tab', async () => {
+    const { pointer, sound, lastFrame } = await openWithSound();
+    const { col, row } = locate(lastFrame(), 'MISSIONS');
+    pointer.tap(col, row);
+    await until(lastFrame, (frame) => frame.includes('Jan 2022 – Present'));
+    expect(sound.plays).toEqual([{ cue: 'section', options: { pitch: scalePitch(2) } }]);
+  });
+
+  it('plays the next section note for a swipe', async () => {
+    const { pointer, sound, lastFrame } = await openWithSound();
+    pointer.emit({ type: 'swipe', direction: 'left' });
+    await until(lastFrame, (frame) => frame.includes('Jan 2022 – Present'));
+    pointer.emit({ type: 'swipe', direction: 'right' });
+    await until(lastFrame, (frame) => frame.includes('SUMMARY'));
+    expect(sound.plays.map((play) => play.options?.pitch)).toEqual([scalePitch(2), scalePitch(1)]);
+  });
+
+  it('ticks for the wheel', async () => {
+    const { pointer, sound, stdin, lastFrame } = await openWithSound();
+    stdin.write('2');
+    await until(lastFrame, (frame) => frame.includes('┃'));
+    await wait(150);
+    sound.plays.length = 0;
+
+    pointer.emit({ type: 'wheel', rows: 2 });
+    await wait(80);
+    expect(sound.cues).toEqual(['tick']);
+  });
+
+  it('makes a sound for a link that is opened', async () => {
+    const { pointer, sound, lastFrame } = await openWithSound();
+    await openComms(pointer, lastFrame);
+    sound.plays.length = 0;
+
+    const { col, row } = locate(lastFrame(), profile.links[1]!.url);
+    pointer.tap(col, row, 'touch');
+    expect(sound.cues).toEqual(['link']);
   });
 });

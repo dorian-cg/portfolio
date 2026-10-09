@@ -1,4 +1,5 @@
 import { profile } from '../content/profile';
+import type { CueCall } from '../sound/cues';
 import { typedCount } from './fx/typewriter';
 
 /** Milliseconds from the first character to the hand-over to the HUD. */
@@ -65,4 +66,31 @@ export function introLines(time: number): IntroLine[] {
   if (loaded) lines.push(loaded);
   if (welcome) lines.push(welcome);
   return lines;
+}
+
+/** Characters of the typed lines shown `time` ms into the intro. */
+const typedChars = (time: number): number =>
+  TYPED.reduce((sum, { label, value, at, cps }) => sum + Math.min((label + value).length, typedCount(time, at, cps)), 0);
+
+/** Filled cells of the scan bar `time` ms into the intro. */
+const scanCells = (time: number): number =>
+  time < SCAN_START ? 0 : Math.round((Math.min(1, (time - SCAN_START) / (SCAN_END - SCAN_START)) * BAR_WIDTH));
+
+const LOADED_AT = TYPED[1]!.at;
+
+/** The sounds for what appeared between `from` and `to` ms into the intro. */
+export function introCues(from: number, to: number): CueCall[] {
+  const cues: CueCall[] = [];
+  const cells = scanCells(to);
+  if (cells > scanCells(from)) {
+    // The scan climbs from a low note to a high one as the bar fills.
+    cues.push({ cue: 'scan', pitch: 0.8 + (0.6 * cells) / BAR_WIDTH });
+  }
+  if (typedChars(to) > typedChars(from)) {
+    cues.push({ cue: 'type' });
+  }
+  if (from < LOADED_AT && to >= LOADED_AT) {
+    cues.push({ cue: 'confirm' });
+  }
+  return cues;
 }

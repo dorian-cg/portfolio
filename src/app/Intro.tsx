@@ -1,9 +1,10 @@
 import { Box, Text, useAnimation, useInput } from 'ink';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { hud } from './hud/palette';
 import { usePointerGesture } from './input/pointer';
-import { INTRO_DURATION, INTRO_WIDTH, introLines, type IntroLine } from './intro-script';
+import { INTRO_DURATION, INTRO_WIDTH, introCues, introLines, type IntroLine } from './intro-script';
 import type { Layout } from './layout';
+import { useSound } from './sound';
 
 const valueColor = (kind: IntroLine['kind']) => (kind === 'loaded' ? hud.ok : kind === 'scan' ? hud.line : hud.text);
 
@@ -17,14 +18,27 @@ export interface IntroProps {
 export function Intro({ layout, onDone }: IntroProps) {
   const { time } = useAnimation({ interval: 40 });
   const finished = time >= INTRO_DURATION;
+  const play = useSound();
 
-  useInput(() => onDone());
-  usePointerGesture((gesture) => gesture.type === 'tap' && onDone());
+  // The typing and the scan bar tick as they go, and the hand-over opens the HUD.
+  const heard = useRef(0);
+  useEffect(() => {
+    introCues(heard.current, time).forEach((call) => play(call.cue, call));
+    heard.current = time;
+  }, [time, play]);
+
+  const done = () => {
+    play('enter');
+    onDone();
+  };
+  useInput(done);
+  usePointerGesture((gesture) => gesture.type === 'tap' && done());
   useEffect(() => {
     if (finished) {
+      play('enter');
       onDone();
     }
-  }, [finished, onDone]);
+  }, [finished, onDone, play]);
 
   const lines = introLines(time);
   const last = lines.length - 1;

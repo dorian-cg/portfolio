@@ -1,6 +1,7 @@
 import { Text, useAnimation } from 'ink';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { hud } from '../hud/palette';
+import { useSound } from '../sound';
 import { useEntrance } from './motion';
 
 /** How many characters are typed `elapsed` ms into an effect that starts after `delay` ms. */
@@ -22,6 +23,13 @@ export function useTypewriter(text: string, { cps = 120, delay = 0 }: Typewriter
 
   const count = typedCount(time, delay, cps);
   const finished = !play || done || count >= text.length;
+
+  const sound = useSound();
+  useEffect(() => {
+    if (play && count > 0 && !done) {
+      sound('type');
+    }
+  }, [count, play, done, sound]);
 
   useEffect(() => {
     if (finished) {

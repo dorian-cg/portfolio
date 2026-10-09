@@ -4,7 +4,9 @@ import { bootstrap } from './bootstrap';
 import { startBoot } from './boot/boot-screen';
 import { applyBootTheme, bootDisplayStyle } from './boot/boot-theme';
 import { createCanvasDisplay } from './boot/display';
+import { bootCue } from './boot/boot-sound';
 import { bootOptions } from './boot/preferences';
+import { createSoundEngine } from './sound/engine';
 import { loadFonts, measureCell } from './terminal/font';
 
 // The browser's colour detection is conservative (and zero on some browsers);
@@ -28,14 +30,28 @@ async function main() {
     applyBootTheme(bootRoot, cell);
     display = createCanvasDisplay(log, bootDisplayStyle(cell));
   }
-  const boot = startBoot(bootRoot, { ...options, display });
+
+  // Browsers only allow sound after a key press or tap, so a boot that will
+  // make sound waits for one at the start. A visitor who muted it, or asked for
+  // no animation, is not made to wait.
+  const sound = createSoundEngine({ unlockOn: window });
+  const boot = startBoot(bootRoot, {
+    ...options,
+    display,
+    gate: sound.available && sound.enabled(),
+    onPower: (silent) => (silent ? sound.setEnabled(false) : sound.unlock()),
+    onEvent: (event) => {
+      const { cue, ...bend } = bootCue(event);
+      sound.play(cue, bend);
+    },
+  });
 
   // The app starts behind the boot screen, which stays up until it has played
   // out and the terminal is ready.
   let release!: () => void;
   const ready = new Promise<void>((resolve) => (release = resolve));
   try {
-    await bootstrap(container, { onMilestone: boot.milestone, ready });
+    await bootstrap(container, { onMilestone: boot.milestone, ready, sound });
     await boot.done();
     release();
   } catch (error) {

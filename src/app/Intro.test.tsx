@@ -1,8 +1,10 @@
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
+import { RecordingSound } from '../sound/fake-audio';
 import { Intro } from './Intro';
 import { INTRO_DURATION } from './intro-script';
 import { layoutFor } from './layout';
+import { SoundProvider } from './sound';
 import { until } from './test-utils';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -48,3 +50,40 @@ describe('Intro', () => {
     expect(lastFrame()).not.toContain('…');
   });
 });
+
+describe('Intro sound', () => {
+  const mount = (onDone = () => {}) => {
+    const sound = new RecordingSound();
+    const app = render(
+      <SoundProvider engine={sound}>
+        <Intro layout={layout} onDone={onDone} />
+      </SoundProvider>,
+    );
+    return { sound, ...app };
+  };
+
+  it('ticks as the banner types', async () => {
+    const { sound } = mount();
+    await wait(300);
+    expect(sound.cues).toContain('type');
+    expect(sound.cues).not.toContain('enter');
+  });
+
+  it('opens with a sound when skipped, once', async () => {
+    const { sound, stdin } = mount();
+    await wait(50);
+    stdin.write('x');
+    await wait(50);
+    expect(sound.cues.filter((cue) => cue === 'enter')).toHaveLength(1);
+  });
+
+  it('sweeps the scan, confirms the profile and opens when it has played out', async () => {
+    const { sound } = mount();
+    await wait(INTRO_DURATION + 400);
+    expect(sound.cues.filter((cue) => cue === 'scan').length).toBeGreaterThan(5);
+    expect(sound.cues.filter((cue) => cue === 'confirm')).toHaveLength(1);
+    expect(sound.cues.filter((cue) => cue === 'enter')).toHaveLength(1);
+    expect(sound.cues.at(-1)).toBe('enter');
+  });
+});
+

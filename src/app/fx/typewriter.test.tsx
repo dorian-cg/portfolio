@@ -1,5 +1,7 @@
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
+import { RecordingSound } from '../../sound/fake-audio';
+import { SoundProvider } from '../sound';
 import { Entrance, MotionProvider } from './motion';
 import { Typed, typedCount } from './typewriter';
 
@@ -70,3 +72,46 @@ describe('Typed', () => {
     expect(lastFrame()).toContain('styled');
   });
 });
+
+describe('Typed sound', () => {
+  const sound = (children: React.ReactNode, engine = new RecordingSound()) => {
+    render(<SoundProvider engine={engine}>{children}</SoundProvider>);
+    return engine;
+  };
+
+  it('ticks while it types, and not before its delay or once done', async () => {
+    const engine = sound(
+      <Typed cps={100} delay={200}>
+        hello world
+      </Typed>,
+    );
+    await wait(100);
+    expect(engine.cues).toEqual([]);
+
+    await wait(300);
+    expect(engine.cues.length).toBeGreaterThan(0);
+    expect(new Set(engine.cues)).toEqual(new Set(['type']));
+
+    await wait(500);
+    const total = engine.cues.length;
+    await wait(300);
+    expect(engine.cues).toHaveLength(total);
+  });
+
+  it('is silent when everything shows at once', async () => {
+    const reduced = sound(
+      <MotionProvider reduced>
+        <Typed>hello world</Typed>
+      </MotionProvider>,
+    );
+    const seen = sound(
+      <Entrance play={false}>
+        <Typed>hello world</Typed>
+      </Entrance>,
+    );
+    await wait(200);
+    expect(reduced.plays).toEqual([]);
+    expect(seen.plays).toEqual([]);
+  });
+});
+

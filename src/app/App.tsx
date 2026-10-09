@@ -1,10 +1,12 @@
 import { Box, useWindowSize } from 'ink';
 import { useCallback, useEffect, useState } from 'react';
+import { silentEngine, type SoundEngine } from '../sound/engine';
 import { MotionProvider } from './fx/motion';
 import { Hud } from './hud/Hud';
 import { PointerProvider, type PointerSource } from './input/pointer';
 import { Intro } from './Intro';
 import { layoutFor } from './layout';
+import { SoundProvider } from './sound';
 import { useNavigation } from './use-navigation';
 
 export interface AppProps {
@@ -18,14 +20,18 @@ export interface AppProps {
   ready?: Promise<void>;
   /** Taps, swipes and the wheel. Without it the app only answers the keyboard. */
   pointer?: PointerSource;
+  /** Makes the sounds. Without it the app is silent. */
+  sound?: SoundEngine;
 }
 
-export function App({ reducedMotion = false, ready, pointer }: AppProps) {
+export function App({ reducedMotion = false, ready, pointer, sound = silentEngine }: AppProps) {
   return (
     <PointerProvider source={pointer}>
-      <MotionProvider reduced={reducedMotion}>
-        <Screen reducedMotion={reducedMotion} ready={ready} />
-      </MotionProvider>
+      <SoundProvider engine={sound}>
+        <MotionProvider reduced={reducedMotion}>
+          <Screen reducedMotion={reducedMotion} ready={ready} />
+        </MotionProvider>
+      </SoundProvider>
     </PointerProvider>
   );
 }

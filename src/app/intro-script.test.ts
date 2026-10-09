@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTRO_DURATION, INTRO_WIDTH, introLines, scanBar, SCAN_END, SCAN_START } from './intro-script';
+import { INTRO_DURATION, INTRO_WIDTH, introCues, introLines, scanBar, SCAN_END, SCAN_START } from './intro-script';
 
 const text = (time: number) => introLines(time).map((line) => line.label + line.value);
 
@@ -79,3 +79,51 @@ describe('introLines', () => {
     expect(finished[finished.length - 1]).toBe('Welcome, visitor.');
   });
 });
+
+describe('introCues', () => {
+  /** Every cue heard when the intro is played in 40 ms frames, as the Intro does. */
+  const heard = (from = 0, to = INTRO_DURATION) => {
+    const cues = [];
+    for (let time = from; time < to; time += 40) {
+      cues.push(...introCues(time, time + 40));
+    }
+    return cues;
+  };
+
+  it('is silent when no time passes', () => {
+    expect(introCues(500, 500)).toEqual([]);
+  });
+
+  it('types while the banner is typed', () => {
+    expect(introCues(0, 100).map((call) => call.cue)).toEqual(['type']);
+  });
+
+  it('is silent in a gap where nothing is typed or scanned', () => {
+    // After the banner has been typed and before the scan starts.
+    expect(introCues(600, 700)).toEqual([]);
+  });
+
+  it('ticks the scan once for each cell of its bar, climbing in pitch', () => {
+    const scans = heard().filter((call) => call.cue === 'scan');
+    expect(scans).toHaveLength(14);
+    const pitches = scans.map((call) => call.pitch!);
+    expect([...pitches].sort((a, b) => a - b)).toEqual(pitches);
+    expect(pitches[0]).toBeLessThan(1);
+    expect(pitches.at(-1)).toBeCloseTo(1.4);
+  });
+
+  it('keeps the scan within its own time', () => {
+    expect(heard(0, SCAN_START).some((call) => call.cue === 'scan')).toBe(false);
+    expect(heard(SCAN_END + 40, INTRO_DURATION).some((call) => call.cue === 'scan')).toBe(false);
+  });
+
+  it('confirms the profile once, as it loads', () => {
+    expect(heard().filter((call) => call.cue === 'confirm')).toHaveLength(1);
+    expect(introCues(1700, 1760).map((call) => call.cue)).toContain('confirm');
+  });
+
+  it('types every character of the typed lines, and then stops', () => {
+    expect(heard(INTRO_DURATION, INTRO_DURATION + 400).some((call) => call.cue === 'type')).toBe(false);
+  });
+});
+

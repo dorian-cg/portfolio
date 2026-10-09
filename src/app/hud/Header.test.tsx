@@ -2,11 +2,13 @@ import { Box } from 'ink';
 import { render } from 'ink-testing-library';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakePointer } from '../../ink-bridge/fake-pointer';
+import { RecordingSound } from '../../sound/fake-audio';
 import { openLink } from '../input/open-link';
 import { PointerProvider } from '../input/pointer';
 import { layoutFor } from '../layout';
+import { SoundProvider } from '../sound';
 import { until, wait } from '../test-utils';
-import { GITHUB_ICON, Header, githubName } from './Header';
+import { GITHUB_ICON, Header, SOUND_OFF, SOUND_ON, githubName } from './Header';
 
 vi.mock('../input/open-link', () => ({ openLink: vi.fn() }));
 
@@ -90,6 +92,81 @@ describe('Header', () => {
       pointer.tap(3, 0);
       pointer.tap(50, 0);
       expect(openLink).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the sound toggle', () => {
+    const mount = (columns: number, sound = new RecordingSound()) => {
+      const pointer = new FakePointer();
+      const app = render(
+        <PointerProvider source={pointer.onGesture}>
+          <SoundProvider engine={sound}>
+            <Box width={columns} flexDirection="column">
+              <Header layout={layoutFor(columns, 40)} />
+            </Box>
+          </SoundProvider>
+        </PointerProvider>,
+      );
+      return { pointer, sound, ...app };
+    };
+
+    it('is not shown when the browser cannot make sound', () => {
+      for (const columns of [WIDE, 36]) {
+        expect(frame(columns)).not.toContain(SOUND_ON);
+      }
+    });
+
+    it('shows a note beside the repository when sound is on', () => {
+      const out = mount(WIDE).lastFrame()!;
+      expect(out.trimEnd().endsWith(`${SOUND_ON}  ${GITHUB_ICON} ${githubName}`)).toBe(true);
+    });
+
+    it('shows the note struck through when muted', () => {
+      const sound = new RecordingSound();
+      sound.setEnabled(false);
+      expect(mount(WIDE, sound).lastFrame()).toContain(`${SOUND_OFF}  ${GITHUB_ICON}`);
+    });
+
+    it('toggles sound when tapped, and shows it', async () => {
+      const { pointer, sound, lastFrame } = mount(WIDE);
+      await until(lastFrame, (out) => out.includes(SOUND_ON));
+      await wait(60);
+
+      pointer.tap(lastFrame()!.indexOf(SOUND_ON) + 1, 0);
+      expect(sound.enabled()).toBe(false);
+      await until(lastFrame, (out) => out.includes(SOUND_OFF));
+
+      pointer.tap(lastFrame()!.indexOf(SOUND_OFF) + 1, 0);
+      expect(sound.enabled()).toBe(true);
+      await until(lastFrame, (out) => !out.includes(SOUND_OFF));
+    });
+
+    it('forgives a thumb that lands a cell off, without reaching the repository link', async () => {
+      const { pointer, sound, lastFrame } = mount(36);
+      await until(lastFrame, (out) => out.includes(SOUND_ON));
+      await wait(60);
+      const note = lastFrame()!.indexOf(SOUND_ON);
+
+      pointer.tap(note + 1, 0, 'touch');
+      expect(sound.enabled()).toBe(false);
+      expect(openLink).not.toHaveBeenCalled();
+    });
+
+    it('plays a sound when the repository link is opened', async () => {
+      const { pointer, sound, lastFrame } = mount(WIDE);
+      await until(lastFrame, (out) => out.includes(githubName));
+      await wait(60);
+      pointer.tap(lastFrame()!.indexOf(githubName) + 2, 0);
+      expect(sound.cues).toEqual(['link']);
+      expect(openLink).toHaveBeenCalled();
+    });
+
+    it('fits every width the header is used at', () => {
+      for (const columns of [WIDE, 99, 60, 59, 36]) {
+        for (const line of mount(columns).lastFrame()!.split('\n')) {
+          expect(line.length).toBeLessThanOrEqual(columns);
+        }
+      }
     });
   });
 });

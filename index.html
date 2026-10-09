@@ -136,6 +136,18 @@
           filter: brightness(1);
         }
       }
+      /* Powering on after the prompt: a brief flare, since the CRT already opened at load. */
+      #boot.boot-power .boot-screen {
+        animation: power-flare 0.45s ease-out;
+      }
+      @keyframes power-flare {
+        0% {
+          filter: brightness(3);
+        }
+        100% {
+          filter: brightness(1);
+        }
+      }
       @keyframes cursor-blink {
         50% {
           opacity: 0;

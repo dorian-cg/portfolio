@@ -1,5 +1,6 @@
 import { Text, useAnimation } from 'ink';
 import { useEffect, useState, type ComponentProps } from 'react';
+import { useSound } from '../sound';
 import { useEntrance } from './motion';
 
 const GLYPHS = 'ABCDEF0123456789#$%&*<>/\\|=+';
@@ -42,11 +43,21 @@ export function Decrypt({ children, delay = 0, duration = 600, ...textProps }: D
   const progress = Math.min(1, Math.max(0, time - delay) / duration);
   const finished = !play || done || progress >= 1;
 
+  const sound = useSound();
+  useEffect(() => {
+    if (play && !done && time > delay) {
+      sound('type');
+    }
+  }, [frame, play, done, time, delay, sound]);
+
   useEffect(() => {
     if (finished) {
+      if (play && !done) {
+        sound('settle');
+      }
       setDone(true);
     }
-  }, [finished]);
+  }, [finished, play, done, sound]);
 
   // Hold the scrambled look until the delay has passed.
   return <Text {...textProps}>{finished ? children : decryptText(children, progress, frame)}</Text>;

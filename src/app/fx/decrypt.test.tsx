@@ -1,5 +1,7 @@
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
+import { RecordingSound } from '../../sound/fake-audio';
+import { SoundProvider } from '../sound';
 import { Decrypt, decryptText } from './decrypt';
 import { Entrance, MotionProvider } from './motion';
 
@@ -64,3 +66,51 @@ describe('Decrypt', () => {
     expect(lastFrame()).toBe('SUMMARY');
   });
 });
+
+describe('Decrypt sound', () => {
+  const mount = (children: React.ReactNode) => {
+    const engine = new RecordingSound();
+    render(<SoundProvider engine={engine}>{children}</SoundProvider>);
+    return engine;
+  };
+
+  it('ticks while it scrambles and sounds once when it settles', async () => {
+    const engine = mount(<Decrypt duration={300}>SECRET TEXT</Decrypt>);
+    await wait(150);
+    expect(engine.cues).toContain('type');
+    expect(engine.cues).not.toContain('settle');
+
+    await wait(500);
+    expect(engine.cues.filter((cue) => cue === 'settle')).toHaveLength(1);
+    const total = engine.cues.length;
+    await wait(300);
+    expect(engine.cues).toHaveLength(total);
+  });
+
+  it('is silent when it shows the text at once', async () => {
+    const engine = mount(
+      <MotionProvider reduced>
+        <Decrypt>SECRET TEXT</Decrypt>
+      </MotionProvider>,
+    );
+    const seen = mount(
+      <Entrance play={false}>
+        <Decrypt>SECRET TEXT</Decrypt>
+      </Entrance>,
+    );
+    await wait(200);
+    expect(engine.plays).toEqual([]);
+    expect(seen.plays).toEqual([]);
+  });
+
+  it('waits for its delay before ticking', async () => {
+    const engine = mount(
+      <Decrypt delay={400} duration={200}>
+        SECRET TEXT
+      </Decrypt>,
+    );
+    await wait(250);
+    expect(engine.plays).toEqual([]);
+  });
+});
+
