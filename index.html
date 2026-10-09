@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0e14" />
+    <link rel="icon" href="data:," />
+    <title>portfolio</title>
+    <link
+      rel="preload"
+      href="/src/assets/fonts/MesloLGSNerdFont-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <style>
+      @font-face {
+        font-family: 'MesloLGS Nerd Font';
+        font-style: normal;
+        font-weight: 400;
+        font-display: block;
+        src: url('/src/assets/fonts/MesloLGSNerdFont-Regular.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'MesloLGS Nerd Font';
+        font-style: normal;
+        font-weight: 700;
+        font-display: block;
+        src: url('/src/assets/fonts/MesloLGSNerdFont-Bold.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'MesloLGS Nerd Font';
+        font-style: italic;
+        font-weight: 400;
+        font-display: block;
+        src: url('/src/assets/fonts/MesloLGSNerdFont-Italic.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'MesloLGS Nerd Font';
+        font-style: italic;
+        font-weight: 700;
+        font-display: block;
+        src: url('/src/assets/fonts/MesloLGSNerdFont-BoldItalic.woff2') format('woff2');
+      }
+
+      :root {
+        /* Shared by the terminal and the boot screen so their text lines up. */
+        --pad: 12px 16px;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0e14;
+      }
+      #terminal {
+        box-sizing: border-box;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        padding: var(--pad);
+        overflow: hidden;
+      }
+
+      /*
+       * Boot screen: shown while the app loads behind it. Its text is drawn on a
+       * canvas (src/boot) with the terminal's font and cell grid. The --boot-*
+       * variables come from src/terminal; the fallbacks cover the moment before
+       * scripts run.
+       */
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        overflow: hidden;
+        background: var(--boot-bg, #0b0e14);
+        transition: opacity 0.35s ease-out;
+      }
+      #boot.boot-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot .boot-screen {
+        box-sizing: border-box;
+        height: 100%;
+        padding: var(--pad);
+        transform-origin: center;
+        animation: crt-on 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+      }
+      #boot .boot-log {
+        position: relative;
+        height: 100%;
+      }
+      #boot .boot-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #boot .boot-cursor {
+        position: absolute;
+        left: calc(var(--boot-cursor-col, 0) * var(--boot-cell-w, 9px));
+        top: calc(var(--boot-cursor-row, 0) * var(--boot-cell-h, 18px));
+        width: var(--boot-cell-w, 9px);
+        height: var(--boot-cell-h, 18px);
+        background: var(--boot-cursor, #ffcc66);
+        animation: cursor-blink 1s steps(1) infinite;
+      }
+      /* A CRT powering on: a dot stretches into a line, then opens up. */
+      @keyframes crt-on {
+        0% {
+          transform: scale(0, 0.004);
+          filter: brightness(10);
+        }
+        40% {
+          transform: scale(1, 0.004);
+          filter: brightness(7);
+        }
+        100% {
+          transform: scale(1, 1);
+          filter: brightness(1);
+        }
+      }
+      @keyframes cursor-blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <div id="boot" aria-hidden="true">
+      <div class="boot-screen">
+        <div class="boot-log"><span class="boot-cursor"></span></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

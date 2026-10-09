@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+
+# Source TTFs for the web fonts (~3 MB each); see scripts/build-fonts.mjs
+/fonts/
