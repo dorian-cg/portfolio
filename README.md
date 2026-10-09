@@ -1,4 +1,4 @@
-# portfolio
+# Dorian Cortes – Portfolio
 
 A static web app that looks and behaves like a terminal. Visitors land on a
 full-screen [Ghostty](https://ghostty.org) terminal (via
@@ -136,13 +136,13 @@ for browsers and home screens that do not take an SVG.
 
 Pushes to `main` run typecheck, tests and build, then deploy `dist/` to GitHub
 Pages (`.github/workflows/deploy.yml`). The site is at
-<https://dorian-cg.github.io/portfolio/>.
+<https://dorian-cortes.github.io/portfolio/>.
 
 One-time setup: in the repository settings, set **Pages → Source** to
 **GitHub Actions**, or run:
 
 ```sh
-gh api -X POST repos/dorian-cg/portfolio/pages -f build_type=workflow
+gh api -X POST repos/dorian-cortes/portfolio/pages -f build_type=workflow
 ```
 
 The build uses a relative base path, so it works under `/portfolio/` and on a

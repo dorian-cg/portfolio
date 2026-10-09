@@ -50,9 +50,9 @@ describe('Header', () => {
 
   it('shows the GitHub icon and the repository on the right', () => {
     const out = frame(WIDE);
-    expect(githubName).toBe('dorian-cg/portfolio');
+    expect(githubName).toBe('dorian-cortes/portfolio');
     expect(GITHUB_ICON).toBe('');
-    expect(out.trimEnd().endsWith(`${GITHUB_ICON} dorian-cg/portfolio`)).toBe(true);
+    expect(out.trimEnd().endsWith(`${GITHUB_ICON} dorian-cortes/portfolio`)).toBe(true);
   });
 
   it('fits every width it is used at', () => {
@@ -82,7 +82,7 @@ describe('Header', () => {
       await wait(60);
       const col = lastFrame()!.indexOf(githubName) + 2;
       pointer.tap(col, 0, pointerType);
-      expect(openLink).toHaveBeenCalledWith('https://github.com/dorian-cg/portfolio');
+      expect(openLink).toHaveBeenCalledWith('https://github.com/dorian-cortes/portfolio');
     });
 
     it('does not open for a tap elsewhere in the header', async () => {

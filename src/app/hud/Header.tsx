@@ -12,7 +12,7 @@ export const GITHUB_ICON = '\ue709';
 
 const github = profile.links.find((link) => link.label === 'GitHub')!;
 
-/** `dorian-cg/portfolio` from `https://github.com/dorian-cg/portfolio`. */
+/** `dorian-cortes/portfolio` from `https://github.com/dorian-cortes/portfolio`. */
 export const githubName = new URL(github.url).pathname.slice(1);
 
 /** The sound toggle: a note, struck through when muted. Both are in the font subset. */

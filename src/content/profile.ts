@@ -175,7 +175,7 @@ export const profile = {
 
   links: [
     { label: 'LinkedIn', url: 'https://linkedin.com/in/dorian-cortes' },
-    { label: 'GitHub', url: 'https://github.com/dorian-cg/portfolio' },
+    { label: 'GitHub', url: 'https://github.com/dorian-cortes/portfolio' },
   ],
 } as const satisfies {
   name: string;
